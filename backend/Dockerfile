@@ -26,4 +26,6 @@ USER node
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+# Same idempotent migrate-then-start pattern as the dev stage, against the
+# compiled config/migrations since ts-node isn't installed in this stage.
+CMD ["sh", "-c", "npm run migrate:prod && node dist/index.js"]
