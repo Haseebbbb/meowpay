@@ -1,0 +1,2 @@
+# Knex migrations live here. Create one with:
+#   npm run migrate:make -- create_payments_table
