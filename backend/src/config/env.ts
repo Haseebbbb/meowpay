@@ -13,6 +13,7 @@ export interface Env {
   databaseUrl: string;
   jwtSecret: string;
   jwtExpiresInSeconds: number;
+  corsOrigin: string;
 }
 
 function required(name: string): string {
@@ -75,4 +76,6 @@ export const env: Env = Object.freeze({
     60 * 60 * 24 * 7,
     'JWT_EXPIRES_IN_SECONDS',
   ),
+  // Default matches the Vite dev server's default port (web/vite.config.ts).
+  corsOrigin: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
 });

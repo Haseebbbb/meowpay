@@ -2,8 +2,8 @@ import { CssBaseline } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
+import { Auth } from './pages/Auth';
 import { DashboardPage } from './pages/DashboardPage';
-import { HomePage } from './pages/HomePage';
 import { theme } from './theme';
 
 function App() {
@@ -12,7 +12,7 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Auth />} />
           <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </BrowserRouter>

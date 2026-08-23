@@ -5,8 +5,10 @@
 // unlike `tsc --noEmit`, which eagerly includes everything matching tsconfig
 // `include` — so without this reference the augmentation is invisible under
 // ts-node even though `npm run typecheck` sees it fine.
+import cors from 'cors';
 import express, { type Express } from 'express';
 
+import { env } from './config/env';
 import routes from './routes';
 import { authenticate } from './middleware/authenticate';
 import { errorHandler } from './middleware/error-handler';
@@ -20,6 +22,10 @@ export function createApp(): Express {
   const app = express();
 
   app.disable('x-powered-by');
+  // Must run before everything else: the `cors` package answers OPTIONS
+  // preflight requests itself and short-circuits, so it needs to see them
+  // before body parsing or auth would otherwise reject them.
+  app.use(cors({ origin: env.corsOrigin }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
