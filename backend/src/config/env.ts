@@ -11,6 +11,8 @@ export interface Env {
   isProduction: boolean;
   port: number;
   databaseUrl: string;
+  jwtSecret: string;
+  jwtExpiresInSeconds: number;
 }
 
 function required(name: string): string {
@@ -38,6 +40,20 @@ function parsePort(raw: string | undefined, fallback: number): number {
   return port;
 }
 
+function parsePositiveInt(raw: string | undefined, fallback: number, name: string): number {
+  if (!raw) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Invalid ${name}: "${raw}" is not a positive integer`);
+  }
+
+  return value;
+}
+
 function parseNodeEnv(raw: string | undefined): NodeEnv {
   if (raw === 'production' || raw === 'test' || raw === 'development') {
     return raw;
@@ -53,4 +69,10 @@ export const env: Env = Object.freeze({
   isProduction: nodeEnv === 'production',
   port: parsePort(process.env['PORT'], 3000),
   databaseUrl: required('DATABASE_URL'),
+  jwtSecret: required('JWT_SECRET'),
+  jwtExpiresInSeconds: parsePositiveInt(
+    process.env['JWT_EXPIRES_IN_SECONDS'],
+    60 * 60 * 24 * 7,
+    'JWT_EXPIRES_IN_SECONDS',
+  ),
 });

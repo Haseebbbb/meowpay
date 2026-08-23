@@ -4,3 +4,5 @@
 //
 // Re-export each model from this barrel so consumers can `import { X } from '../models'`.
 export * from './health.model';
+export * from './cat.model';
+export * from './auth.model';

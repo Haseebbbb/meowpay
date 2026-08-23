@@ -17,6 +17,10 @@ export class HttpError extends Error {
     return new HttpError(400, message);
   }
 
+  static unauthorized(message = 'Unauthorized'): HttpError {
+    return new HttpError(401, message);
+  }
+
   static notFound(message = 'Not Found'): HttpError {
     return new HttpError(404, message);
   }
