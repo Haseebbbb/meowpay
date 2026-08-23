@@ -1,0 +1,8 @@
+/* MUI's CssBaseline (see App.tsx) handles the actual reset — margins,
+   box-sizing, background/typography from the theme. This just makes sure the
+   root fills the viewport instead of shrink-wrapping its (currently empty) content. */
+html,
+body,
+#root {
+  height: 100%;
+}
