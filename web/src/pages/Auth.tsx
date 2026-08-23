@@ -13,24 +13,14 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import axios from 'axios';
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { login, signup } from '../api/auth';
 import { TOKEN_STORAGE_KEY } from '../api/client';
+import { extractErrorMessage } from '../api/errors';
 
 type Mode = 'login' | 'signup';
-
-function extractErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const message = error.response?.data?.error?.message;
-    if (typeof message === 'string') {
-      return message;
-    }
-  }
-  return 'Something went wrong. Please try again.';
-}
 
 export function Auth() {
   const navigate = useNavigate();

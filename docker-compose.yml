@@ -20,16 +20,25 @@ services:
   backend:
     build:
       context: ./backend
+      target: dev
     container_name: meowpay-backend
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3000
       # `db` is the compose service name, resolvable on the default network.
       DATABASE_URL: postgres://meowpay:meowpay@db:5432/meowpay
+      # Dev-only secret — generate and inject a real one for any shared/prod environment.
+      JWT_SECRET: dev-only-change-me
+    volumes:
+      - ./backend:/app
+      # Anonymous volume shadows the bind mount at this path, keeping the
+      # container's own node_modules (installed by `npm ci` in the dev stage)
+      # instead of whatever is (or isn't) on the host.
+      - /app/node_modules
     ports:
       - "3000:3000"
 

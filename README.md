@@ -207,6 +207,17 @@ frontend never has to cross-reference them itself.
   balance (exactly one succeeds), and sending the same transfer request twice
   with one `idempotencyKey` (same `transactionId`, balance moves once).
 
+  The test database name is derived by swapping the database segment of
+  whatever `DATABASE_URL` is already active — `.env`'s on the host, or
+  docker-compose's injected value inside the container — rather than a
+  separate `.env.test` file with its own hardcoded host. That's what lets the
+  exact same command work both ways:
+
+  ```bash
+  npm run test:integration                              # on the host
+  docker compose exec backend npm run test:integration  # inside the container
+  ```
+
 ## Scripts (`backend/`)
 
 | Script | Purpose |
