@@ -29,6 +29,7 @@ export function errorHandler(
   res.status(status).json({
     error: {
       status,
+      ...(error instanceof HttpError && error.code ? { code: error.code } : {}),
       // Never leak internals of an unexpected failure to clients in production.
       message: status >= 500 && env.isProduction ? 'Internal Server Error' : message,
       ...(env.isProduction || !(error instanceof Error) ? {} : { stack: error.stack }),

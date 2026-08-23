@@ -14,3 +14,17 @@ export interface NewCat {
   password_hash: string;
   balance: number;
 }
+
+// Public projection used by search results — never includes password_hash.
+export interface CatSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface MeResult {
+  id: string;
+  name: string;
+  email: string;
+  balance: number;
+}

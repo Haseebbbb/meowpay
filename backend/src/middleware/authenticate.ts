@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 
+import type { AuthenticatedCat } from '../models';
 import { verifyAuthToken } from '../utils/jwt';
 import { HttpError } from './http-error';
 
@@ -45,4 +46,16 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   } catch {
     next(HttpError.unauthorized('Invalid or expired token'));
   }
+}
+
+/**
+ * Every non-public route sits behind `authenticate`, so `req.cat` is always
+ * set by the time a handler runs — this just gives that invariant a name and
+ * a safe failure mode instead of a silent `req.cat!` non-null assertion.
+ */
+export function requireAuthenticatedCat(req: Request): AuthenticatedCat {
+  if (!req.cat) {
+    throw HttpError.unauthorized('Authentication required');
+  }
+  return req.cat;
 }

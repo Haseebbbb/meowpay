@@ -6,3 +6,4 @@
 export * from './health.model';
 export * from './cat.model';
 export * from './auth.model';
+export * from './transaction.model';

@@ -142,6 +142,71 @@ returns `401` before the request reaches routing at all — a nonexistent path
 with no token gets `401`, not `404` (the `404` only surfaces once a valid
 token gets you past the auth gate).
 
+## Money movement
+
+Everything below requires `Authorization: Bearer <token>` (see Authentication).
+The sender/actor is always taken from the token (`req.cat.id`) — never from the
+request body — so a client can't spoof `fromCatId`.
+
+### `GET /cats/search?q=`
+
+Case-insensitive partial match on `name` or `email`, excluding your own cat.
+Returns `[]` for a query under 2 characters (avoids a full-table scan), max 10
+results, `[{ id, name, email }]` — no `password_hash`, no `balance`.
+
+### `GET /me`
+
+`{ id, name, email, balance }` for the authenticated cat.
+
+### `POST /topups`
+
+Body: `{ amount, idempotencyKey }`. Tops up your **own** balance — there's no
+`toCatId`, it's always the authenticated cat. `amount` must be a positive
+integer. Returns `{ transactionId, newBalance }`: `201` the first time an
+`idempotencyKey` is processed, `200` if you resend the same key (the original
+result is returned unchanged, balance isn't touched twice).
+
+### `POST /transfers`
+
+Body: `{ toCatId, amount, idempotencyKey }`. `400` if `toCatId` is your own id,
+doesn't exist, or `amount` isn't a positive integer. Same `{transactionId,
+newBalance}` / `201`-then-`200` idempotency behavior as topups, scoped to your
+own id (so someone else generating the same random key never collides with
+yours).
+
+**Insufficient balance** → `422` with `{ "error": { "status": 422, "code": "insufficient_balance", "message": "..." } }`.
+No transaction row is written on rejection — simpler idempotency semantics
+than a `failed` row (which would itself count as "already processed" for a
+retry, even though the client might reasonably want to retry after topping up).
+Note this nests the code inside the standard `{ error: {...} }` envelope every
+other endpoint uses, rather than the bare `{ error: "insufficient_balance" }`
+string some API sketches use — kept consistent with the rest of the API.
+
+Concurrency: the sender's row is locked (`SELECT ... FOR UPDATE`) inside the
+DB transaction before the balance check, so two simultaneous transfers from
+the same sender that would individually fit but together overdraw the balance
+resolve to exactly one success and one `422` — the second transaction blocks
+on the lock until the first commits, then sees the already-decremented balance.
+
+### `GET /transactions`
+
+All rows belonging to the authenticated cat (sent, received, and topups),
+newest first. Each row includes a computed `direction: "sent" | "received" |
+"topup"` — collapsed from the ledger's `type`/`direction` columns so the
+frontend never has to cross-reference them itself.
+
+### Testing this
+
+- Unit tests (`*.spec.ts`, mocked, no DB): `npm test`.
+- Integration tests (`*.integration.spec.ts`, **real** Postgres transactions —
+  a mock can't prove `FOR UPDATE` locking actually serializes concurrent
+  writes): `npm run test:integration`, requires `docker compose up -d db`.
+  Runs against a separate `meowpay_test` database (auto-created + migrated by
+  `test/globalSetup.js` on first run), never against dev data. Covers the two
+  scenarios above: two simultaneous transfers that together overdraw a
+  balance (exactly one succeeds), and sending the same transfer request twice
+  with one `idempotencyKey` (same `transactionId`, balance moves once).
+
 ## Scripts (`backend/`)
 
 | Script | Purpose |
@@ -154,8 +219,9 @@ token gets you past the auth gate).
 | `npm run migrate:rollback` | Roll back the last migration batch |
 | `npm run migrate:make -- <name>` | Create a new `.ts` migration |
 | `npm run migrate:prod` | Apply migrations from compiled `dist/` |
-| `npm test` | Run the Jest test suite |
-| `npm run test:watch` | Run tests in watch mode |
+| `npm test` | Run the Jest unit test suite (mocked, no DB) |
+| `npm run test:watch` | Run unit tests in watch mode |
+| `npm run test:integration` | Run integration tests against a real, separate `meowpay_test` database |
 
 `test`/`test:watch` invoke `node --localstorage-file=.jest-localstorage .../jest.js`
 directly rather than the plain `jest` binary — recent Node versions expose a global
@@ -188,7 +254,7 @@ Each layer may only call the one below it — nothing skips a layer.
 
 Supporting directories:
 
-- `src/config/` — validated environment (`env.ts`), Knex config, shared connection pool
+- `src/config/` — validated environment (`env.ts`), Knex config, shared connection pool, and the `Executor` type (`Knex | Knex.Transaction`) repository methods use when a service needs to run several writes atomically (see `transaction.service.ts`'s `db.transaction(...)` calls)
 - `src/models/` — TypeScript interfaces for rows and payloads (Knex is a query builder, so there are no ORM classes)
 - `src/middleware/` — `HttpError`, 404 handler, terminal error handler, the global `authenticate` JWT gate
 - `src/utils/` — small cross-cutting helpers used by more than one layer (e.g. `jwt.ts`, used by both `auth.service.ts` and `authenticate.ts`)
@@ -219,6 +285,11 @@ Then mount it in `src/routes/index.ts`:
 ```ts
 router.use('/payments', paymentRoute);
 ```
+
+A route file can declare more than one absolute path when they belong to the
+same domain even if their URLs don't share a prefix — e.g. `cat.route.ts`
+declares both `/cats/search` and `/me` (both "about the current/other cats"),
+mounted with `router.use('/', catRoute)`. Group by domain, not by URL shape.
 
 ## Project layout
 

@@ -14,7 +14,8 @@
     "migrate:prod": "knex --knexfile dist/config/knex.config.js migrate:latest",
     "typecheck": "tsc --noEmit",
     "test": "node --localstorage-file=.jest-localstorage node_modules/jest/bin/jest.js",
-    "test:watch": "node --localstorage-file=.jest-localstorage node_modules/jest/bin/jest.js --watch"
+    "test:watch": "node --localstorage-file=.jest-localstorage node_modules/jest/bin/jest.js --watch",
+    "test:integration": "node --localstorage-file=.jest-localstorage node_modules/jest/bin/jest.js --config jest.integration.config.js"
   },
   "engines": {
     "node": ">=20"

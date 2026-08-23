@@ -5,11 +5,14 @@
  */
 export class HttpError extends Error {
   readonly status: number;
+  /** Machine-readable code for clients to branch on (e.g. "insufficient_balance"). */
+  readonly code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = 'HttpError';
     this.status = status;
+    this.code = code;
     Error.captureStackTrace?.(this, HttpError);
   }
 
@@ -27,5 +30,9 @@ export class HttpError extends Error {
 
   static conflict(message = 'Conflict'): HttpError {
     return new HttpError(409, message);
+  }
+
+  static unprocessable(code: string, message: string): HttpError {
+    return new HttpError(422, message, code);
   }
 }
