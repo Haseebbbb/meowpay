@@ -2,6 +2,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import LogoutIcon from '@mui/icons-material/Logout';
 import PetsIcon from '@mui/icons-material/Pets';
 import SendIcon from '@mui/icons-material/Send';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -12,6 +13,9 @@ import {
   Button,
   Card,
   IconButton,
+  ListItemIcon,
+  Menu,
+  MenuItem,
   Stack,
   Typography,
 } from '@mui/material';
@@ -48,6 +52,7 @@ export function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isTopupOpen, setIsTopupOpen] = useState(false);
+  const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -80,6 +85,14 @@ export function Dashboard() {
     setIsRefreshing(false);
   }
 
+  function handleLogout() {
+    // Frontend-only: JWTs are stateless and there's no server-side session to
+    // invalidate, so "logging out" is just discarding the local token.
+    setSettingsAnchor(null);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    navigate('/');
+  }
+
   return (
     <Box
       sx={{
@@ -100,9 +113,20 @@ export function Dashboard() {
               <Typography variant="body1">Hi, {me?.name ?? '...'}</Typography>
             </Stack>
           </Stack>
-          <IconButton aria-label="Settings">
+          <IconButton
+            aria-label="Settings"
+            onClick={(event) => setSettingsAnchor(event.currentTarget)}
+          >
             <SettingsIcon />
           </IconButton>
+          <Menu anchorEl={settingsAnchor} open={Boolean(settingsAnchor)} onClose={() => setSettingsAnchor(null)}>
+            <MenuItem onClick={handleLogout}>
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              Log out
+            </MenuItem>
+          </Menu>
         </Stack>
 
         {loadError && (

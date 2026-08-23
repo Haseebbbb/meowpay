@@ -1,26 +1,45 @@
 # MeowPay
 
-Payments backend built with Node.js, TypeScript, Express 5, Knex and PostgreSQL.
+A payments demo — cats sending "treats" to each other. Backend:
+Node.js, TypeScript, Express 5, Knex, PostgreSQL. Frontend: React, TypeScript,
+Vite, MUI.
+
+The frontend is never containerized — it always runs on the host with
+`npm run dev`, and it needs the backend already up and reachable on
+`localhost:3000` before it can do anything (auth, balance, transfers all go
+through it). **Start the backend first in both flows below.**
 
 ## Prerequisites
 
 - Node.js 20+ (developed on 25)
-- Docker + Docker Compose (for PostgreSQL)
+- Docker + Docker Compose (for PostgreSQL, and optionally the backend)
 
-## Quick start — everything in Docker
+## Quick start — backend in Docker, frontend on your machine
 
 ```bash
+# 1. Backend + Postgres
 docker compose up --build
-curl -i localhost:3000/health
+curl -i localhost:3000/health          # wait for this to return 200 first
+
+# 2. Frontend — only start once the backend responds
+cd web
+cp .env.example .env
+npm install
+npm run dev
 ```
+
+Frontend is then on http://localhost:5173, talking to the backend on :3000.
 
 ## Local development
 
-Run Postgres in Docker, the API on your machine with hot reload:
+Postgres in Docker, backend on your machine with hot reload, frontend on your
+machine:
 
 ```bash
+# 1. Postgres
 docker compose up -d db
 
+# 2. Backend
 cd backend
 cp .env.example .env
 npm install
@@ -39,6 +58,21 @@ curl -i localhost:3000/health
 
 If Postgres is unreachable the same endpoint returns **503** with
 `"status": "degraded"` and `"database": "down"`.
+
+```bash
+# 3. Frontend — in a second terminal, once /health above returns 200
+cd web
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Frontend is then on http://localhost:5173 — `/` is the login/signup screen,
+`/dashboard` the balance + transfer/top-up screen. Its `.env` points
+`VITE_API_URL` at the backend (default `http://localhost:3000`); the backend's
+`CORS_ORIGIN` (see Environment below) must match wherever the frontend
+actually runs, or requests get blocked by the browser before they reach
+Express at all.
 
 ## Database
 
@@ -80,7 +114,9 @@ Or against the Dockerized backend: `docker compose exec backend npm run migrate`
 
 ### Dummy cats
 
-The migration seeds 4 cats for local testing. **All seeded `password_hash` values are placeholders, not real bcrypt-compatible hashes** — you can't log in as them via `POST /auth/login`; they exist so `cats` rows aren't empty. Use `POST /auth/signup` to create a cat you can actually log in as.
+The migration seeds 4 cats for local testing, all with the password
+**`12345678`** — log in as any of them via `POST /auth/login` directly, no
+signup needed.
 
 | Name | Email | Balance | id |
 | --- | --- | --- | --- |
@@ -88,6 +124,13 @@ The migration seeds 4 cats for local testing. **All seeded `password_hash` value
 | Mittens | `mittens@meowpay.dev` | 5000 | `22222222-2222-2222-2222-222222222222` |
 | Tom | `tom@meowpay.dev` | 0 | `33333333-3333-3333-3333-333333333333` |
 | Garfield | `garfield@meowpay.dev` | 25000 | `44444444-4444-4444-4444-444444444444` |
+
+This only applies to a **fresh** database — if you migrated before this
+change landed, knex won't re-run the seed step (it's tracked as already
+applied), so your existing rows keep whatever `password_hash` they had
+before. Roll back and reapply (`npm run migrate:rollback && npm run migrate`,
+which drops and recreates both tables) to pick it up, or update the affected
+rows directly.
 
 ## Authentication
 
@@ -250,6 +293,7 @@ Copy `backend/.env.example` to `backend/.env`.
 | `NODE_ENV` | no | `development` | `development` \| `test` \| `production` |
 | `JWT_SECRET` | yes | — | Signs/verifies auth JWTs; startup fails without it. **Use a real secret outside dev** |
 | `JWT_EXPIRES_IN_SECONDS` | no | `604800` (7 days) | How long an issued JWT stays valid |
+| `CORS_ORIGIN` | no | `http://localhost:5173` | Origin allowed to make cross-origin requests — must match wherever `web/` is actually served from |
 
 ## Architecture
 
@@ -302,6 +346,51 @@ same domain even if their URLs don't share a prefix — e.g. `cat.route.ts`
 declares both `/cats/search` and `/me` (both "about the current/other cats"),
 mounted with `router.use('/', catRoute)`. Group by domain, not by URL shape.
 
+## Frontend (`web/`)
+
+Plain Vite + React + TypeScript, no framework router conventions beyond
+`react-router-dom`. Never containerized — always `npm run dev` on the host.
+
+| Route | Component | Purpose |
+| --- | --- | --- |
+| `/` | `src/pages/Auth.tsx` | Login/signup, pill mode toggle, stores the JWT on success |
+| `/dashboard` | `src/pages/Dashboard.tsx` | Balance, recent transactions, opens the two modals below |
+
+- `src/api/client.ts` — the one axios instance every request goes through; its
+  interceptor attaches `Authorization: Bearer <token>` from `localStorage`
+  (key `meowpay_token`) automatically. `src/api/{auth,cats,transactions}.ts`
+  are thin typed wrappers over it — reuse these rather than calling
+  `apiClient` directly or creating a second instance.
+- `src/api/errors.ts` — `extractErrorMessage()` pulls the real backend message
+  out of `{error: {message}}` (see Authentication/Money movement above) for
+  display, falling back to a generic message for network errors.
+- `src/components/{TransferModal,TopupModal}.tsx` — both generate a fresh
+  `crypto.randomUUID()` idempotency key per submit attempt (not reused across
+  retries), and call `onSuccess` to refetch the dashboard's data on completion.
+- `src/theme.ts` — the MUI theme (palette, pill buttons/toggle, 20px cards).
+  `typography.fontWeightBold` is deliberately pinned to the same value as
+  `fontWeightMedium` (500) so nothing rendered through the theme's `'bold'`
+  shorthand can end up at true bold (700).
+- No route guards yet — `Dashboard` checks for a token itself on mount and
+  redirects to `/` if missing, or if any fetch comes back `401`.
+
+### Scripts (`web/`)
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server (default `http://localhost:5173`) |
+| `npm run build` | Typecheck (`tsc -b`) and build to `dist/` |
+| `npm run preview` | Serve the built `dist/` locally |
+| `npm run lint` | Run `oxlint` |
+
+### Frontend environment
+
+Copy `web/.env.example` to `web/.env`.
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `VITE_API_URL` | no | `http://localhost:3000` | Base URL the axios client sends requests to |
+
 ## Project layout
 
 ```
@@ -311,5 +400,13 @@ meowpay/
 │   ├── knexfile.ts        # knex CLI entry; re-exports src/config/knex.config.ts
 │   ├── Dockerfile         # multi-stage build, runs as non-root
 │   └── src/
-└── web/                   # frontend (added later)
+└── web/
+    ├── .env.example
+    └── src/
+        ├── api/           # apiClient + typed wrappers (auth, cats, transactions, errors)
+        ├── components/     # TransferModal, TopupModal
+        ├── pages/         # Auth (/), Dashboard (/dashboard)
+        ├── utils/
+        ├── theme.ts
+        └── App.tsx        # ThemeProvider + CssBaseline + routes
 ```
