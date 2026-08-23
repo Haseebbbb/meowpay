@@ -2,19 +2,21 @@
 // before any integration test file executes. Responsible for making sure the
 // test database exists and is migrated — NOT for setting env vars for the
 // test files themselves (globalSetup's process.env changes don't propagate
-// to workers; see test/setupTestEnv.js for that half).
+// to workers; see test/setupTestEnv.js, which does the same DATABASE_URL
+// derivation independently since it runs in a different process).
 const path = require('node:path');
 const { execSync } = require('node:child_process');
 const { Client } = require('pg');
 
-require('dotenv').config({ path: path.resolve(__dirname, '../.env.test') });
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 module.exports = async function globalSetup() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not set — check backend/.env.test');
+  const baseUrl = process.env.DATABASE_URL;
+  if (!baseUrl) {
+    throw new Error('DATABASE_URL is not set — check backend/.env or the environment');
   }
 
+  const databaseUrl = baseUrl.replace(/\/[^/]+$/, '/meowpay_test');
   const dbName = databaseUrl.split('/').pop();
   const adminUrl = databaseUrl.replace(/\/[^/]+$/, '/postgres');
 
