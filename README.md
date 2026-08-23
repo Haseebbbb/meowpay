@@ -154,6 +154,13 @@ token gets you past the auth gate).
 | `npm run migrate:rollback` | Roll back the last migration batch |
 | `npm run migrate:make -- <name>` | Create a new `.ts` migration |
 | `npm run migrate:prod` | Apply migrations from compiled `dist/` |
+| `npm test` | Run the Jest test suite |
+| `npm run test:watch` | Run tests in watch mode |
+
+`test`/`test:watch` invoke `node --localstorage-file=.jest-localstorage .../jest.js`
+directly rather than the plain `jest` binary — recent Node versions expose a global
+`localStorage` that throws unless backed by a file, and `jest-environment-node`
+touches it during setup. The backing file is gitignored and safe to delete.
 
 ## Environment
 

@@ -12,7 +12,9 @@
     "migrate:rollback": "knex --knexfile knexfile.ts migrate:rollback",
     "migrate:make": "knex --knexfile knexfile.ts migrate:make -x ts",
     "migrate:prod": "knex --knexfile dist/config/knex.config.js migrate:latest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --localstorage-file=.jest-localstorage node_modules/jest/bin/jest.js",
+    "test:watch": "node --localstorage-file=.jest-localstorage node_modules/jest/bin/jest.js --watch"
   },
   "engines": {
     "node": ">=20"
@@ -28,10 +30,13 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.7.0",
     "@types/pg": "^8.15.5",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.10",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
